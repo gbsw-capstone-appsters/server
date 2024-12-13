@@ -7,6 +7,7 @@ import {
   Unique,
 } from 'typeorm';
 import { QuizResult } from '../../quiz/entities/quiz-result.entity';
+import { Role } from '../../@common/enums/role.enum';
 
 @Entity()
 @Unique(['email'])
@@ -34,6 +35,13 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   hashedRefreshToken?: string;
+
+  @Column({
+    type: 'enum',
+    enum: Role,
+    default: Role.STUDENT,
+  })
+  role: Role;
 
   @OneToMany(() => QuizResult, (quizResult) => quizResult.user)
   quizResults: QuizResult[];
