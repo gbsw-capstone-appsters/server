@@ -1,4 +1,3 @@
-import axios from 'axios';
 import {
   BadRequestException,
   ConflictException,
@@ -17,6 +16,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { EditProfileDto } from './dto/edit-profile.dto';
 import { ImageService } from '../image/image.service';
+import { Role } from '../@common/enums/role.enum';
 
 @Injectable()
 export class AuthService {
@@ -29,7 +29,7 @@ export class AuthService {
   ) {}
 
   async signup(signupDto: SignupDto) {
-    const { email, password, nickName, age } = signupDto;
+    const { email, password, nickName, age, role } = signupDto;
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -39,6 +39,7 @@ export class AuthService {
       loginType: 'email',
       nickName,
       age,
+      role: role ? Role[role.toUpperCase()] : Role.STUDENT,
     });
 
     try {
@@ -79,7 +80,13 @@ export class AuthService {
     const { email, password } = authDto;
     const user = await this.userRepository.findOneBy({ email });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
+      throw new UnauthorizedException(
+        '이메일 또는 비밀번호가 일치하지 않습니다.',
+      );
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException(
         '이메일 또는 비밀번호가 일치하지 않습니다.',
       );

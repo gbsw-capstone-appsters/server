@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Role } from '../../@common/enums/role.enum';
 import {
   IsNotEmpty,
+  IsEnum, 
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -41,4 +44,8 @@ export class SignupDto extends AuthDto {
   @IsNotEmpty()
   @MinLength(1)
   age: number;
+
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 }

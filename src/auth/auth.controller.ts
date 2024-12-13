@@ -23,6 +23,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Role } from '../@common/enums/role.enum';
 
 @ApiTags('Auth')
 @Controller('auth')
