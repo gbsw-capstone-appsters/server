@@ -5,6 +5,8 @@ import { SubmitAnswerDto } from './dto/quiz.dto';
 import { GetUser } from 'src/@common/decorators/get-user.decorator';
 import { User } from 'src/auth/entities/user.entity';
 import { AuthGuard } from '@nestjs/passport';
+import { Roles } from '../@common/decorators/roles.decorator';
+import { Role } from '../@common/enums/role.enum';
 
 @ApiTags('Quiz')
 @Controller('quiz')
@@ -49,7 +51,6 @@ export class QuizController {
   async submitAnswer(
     @Param('id') quizId: number,
     @Body() body: SubmitAnswerDto,
-    // @GetUser() user: User,
   ) {
     return this.quizService.submitAnswer(quizId, body.questionId, body.answer);
   }
@@ -59,5 +60,20 @@ export class QuizController {
   @Get(':id/result')
   async getQuizResult(@Param('id') quizId: number) {
     return this.quizService.getQuizResult(quizId);
+  }
+
+  @ApiOperation({ summary: '학생 학습 진행 상황 조회' })
+  @ApiResponse({ status: 200, description: '성공' })
+  @Get('student/:studentId/progress')
+  @Roles(Role.PARENT)
+  async getStudentProgress(@Param('studentId') studentId: number) {
+    return this.quizService.getStudentProgress(studentId);
+  }
+
+  @ApiOperation({ summary: '사용자의 각 카테고리별 최고 점수 조회' })
+  @ApiResponse({ status: 200, description: '성공' })
+  @Get('user/:userId/best-scores')
+  async getUserBestScores(@Param('userId') userId: number) {
+    return this.quizService.getUserBestScores(userId);
   }
 }

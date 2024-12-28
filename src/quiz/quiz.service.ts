@@ -9,12 +9,12 @@ import { Quiz } from './entities/quiz.entity';
 import { QuizResult } from './entities/quiz-result.entity';
 import { User } from '../auth/entities/user.entity';
 import { OpenAI } from 'openai';
+import { Role } from 'src/@common/enums/role.enum';
 
 interface RankingInfo {
   userId: number;
   nickName: string;
   score: number;
-  level: number;
   rank?: number;
   createdAt: Date;
 }
@@ -23,8 +23,13 @@ interface RankingInfo {
 export class QuizService {
   private openai: OpenAI;
   private readonly TOTAL_QUESTIONS = 10;
-  private readonly CATEGORIES = ['사자성어', '고사성어', '문법', '독해'];
-  private readonly LEVEL_THRESHOLD = 100;
+  private readonly CATEGORIES = [
+    '사자성어',
+    '고사성어',
+    '문법',
+    '독해',
+    '어휘',
+  ];
 
   constructor(
     @InjectRepository(Quiz)
@@ -54,7 +59,7 @@ export class QuizService {
       messages: [
         {
           role: 'user',
-          content: `사용자의 나이는 ${user.age}입니다. 나이수준에 맞도록 ${category}에 대한 한국어 문장을 300자 이내로 생성합니다.`,
+          content: `사용자의 나이는 ${user.age}입니다. 나이수준에 맞도록 쉽게 ${category}에 대한 문제를 만들기 위한 한국어 문장을 100자 이내로 생성합니다.`,
         },
       ],
     });
@@ -68,9 +73,9 @@ export class QuizService {
       messages: [
         {
           role: 'user',
-          content: `다음 지문을 기반으로 10개의 다양한 질문을 생성합니다. 각 질문은 다음 유형을 포함해야 합니다:
-            - 4지선다형 (4개)
-            - O/X 퀴즈 (3개)
+          content: `다음 지문을 기반으로 10개의 다양한 질문을 생성합니다. question와 options에는 영어가 들어가면 안됩니다.  각 질문은 다음 유형을 포함해야 합니다:
+            - 4지선다형 (5개)
+            - O/X 퀴즈 (5개)
             
             다음 JSON 형식으로 반환합니다:
             {
@@ -86,6 +91,7 @@ export class QuizService {
               ]
             }
             
+            문제와 선택지에는 영어가 들어가면 안됩니다.
             카테고리는 ${category}입니다.
             지문: ${passage}`,
         },
@@ -184,38 +190,23 @@ export class QuizService {
       (answer) => answer.isCorrect,
     ).length;
     const overallScore = (correctAnswers / quiz.totalQuestions) * 100;
-    const level = Math.floor(overallScore / this.LEVEL_THRESHOLD);
 
-    const categoryAnalysis = this.CATEGORIES.reduce((acc, category) => {
-      const categoryAnswers = quiz.answers.filter(
-        (answer) => answer.category === category,
-      );
-      const correctCategoryAnswers = categoryAnswers.filter(
-        (answer) => answer.isCorrect,
-      ).length;
-      const totalCategoryAnswers = categoryAnswers.length;
-      const percentage =
-        totalCategoryAnswers > 0
-          ? (correctCategoryAnswers / totalCategoryAnswers) * 100
-          : 0;
-      const score = percentage * (this.LEVEL_THRESHOLD / 100);
-
-      acc[category] = {
-        correct: correctCategoryAnswers,
-        total: totalCategoryAnswers,
-        percentage,
-        score,
-      };
-
+    const categoryAnalysis = quiz.answers.reduce((acc, answer) => {
+      if (!acc[answer.category]) {
+        acc[answer.category] = {
+          correct: 0,
+          total: 0,
+          score: 0,
+        };
+      }
+      acc[answer.category].total += 1;
+      if (answer.isCorrect) {
+        acc[answer.category].correct += 1;
+      }
+      acc[answer.category].score =
+        (acc[answer.category].correct / acc[answer.category].total) * 100;
       return acc;
     }, {});
-
-    const weakestAreas = Object.keys(categoryAnalysis)
-      .sort(
-        (a, b) =>
-          categoryAnalysis[a].percentage - categoryAnalysis[b].percentage,
-      )
-      .slice(0, 2);
 
     const quizResult = this.quizResultRepository.create({
       quizId: quiz.id,
@@ -223,9 +214,7 @@ export class QuizService {
       totalQuestions: quiz.totalQuestions,
       correctAnswers,
       categoryAnalysis,
-      weakestAreas,
       overallScore,
-      level,
     });
 
     await this.quizResultRepository.save(quizResult);
@@ -241,7 +230,6 @@ export class QuizService {
       .select([
         'result.userId',
         'result.categoryAnalysis',
-        'result.level',
         'result.createdAt',
         'user.nickName',
       ])
@@ -259,7 +247,6 @@ export class QuizService {
         userId: result.userId,
         nickName: result.user?.nickName || '',
         score: result.categoryAnalysis[category].score,
-        level: result.level,
         createdAt: result.createdAt,
       }));
 
@@ -289,7 +276,6 @@ export class QuizService {
         userId,
         nickName: '',
         score: 0,
-        level: 0,
         rank: null,
         createdAt: new Date(),
       },
@@ -304,7 +290,6 @@ export class QuizService {
       .select([
         'result.userId',
         'result.overallScore',
-        'result.level',
         'result.createdAt',
         'user.nickName',
       ])
@@ -336,7 +321,6 @@ export class QuizService {
           userId: result.userId,
           nickName: (result as any).user?.nickName,
           score: result.overallScore,
-          level: result.level,
           rank,
           createdAt: result.createdAt,
         };
@@ -350,7 +334,6 @@ export class QuizService {
         userId,
         nickName: '',
         score: 0,
-        level: 0,
         rank: null,
         createdAt: new Date(),
       },
@@ -377,5 +360,35 @@ export class QuizService {
       );
     }
     return result;
+  }
+
+  async getStudentProgress(studentId: number) {
+    const student = await this.userRepository.findOne({
+      where: { id: studentId, role: Role.STUDENT },
+      relations: ['quizResults'],
+    });
+    if (!student) {
+      throw new NotFoundException('학생을 찾을 수 없습니다.');
+    }
+
+    return student.quizResults;
+  }
+
+  async getUserBestScores(userId: number): Promise<any> {
+    const results = await this.quizResultRepository.find({
+      where: { userId },
+    });
+
+    const bestScores = results.reduce((acc, result) => {
+      for (const category in result.categoryAnalysis) {
+        const score = result.categoryAnalysis[category].score;
+        if (!acc[category] || acc[category] < score) {
+          acc[category] = score;
+        }
+      }
+      return acc;
+    }, {});
+
+    return bestScores;
   }
 }

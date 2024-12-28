@@ -3,6 +3,7 @@ import {
   Column,
   Entity,
   OneToMany,
+  ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
@@ -15,7 +16,7 @@ export class User extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ default: 'email' })
   loginType: 'email';
 
   @Column()
@@ -45,4 +46,10 @@ export class User extends BaseEntity {
 
   @OneToMany(() => QuizResult, (quizResult) => quizResult.user)
   quizResults: QuizResult[];
+
+  @ManyToOne(() => User, (user) => user.children)
+  parent: User;
+
+  @OneToMany(() => User, (user) => user.parent)
+  children: User[];
 }

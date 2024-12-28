@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '../../@common/enums/role.enum';
 import {
   IsNotEmpty,
-  IsEnum, 
+  IsEnum,
   IsOptional,
   IsString,
   Matches,
@@ -42,10 +42,10 @@ export class SignupDto extends AuthDto {
 
   @ApiProperty({ description: '나이' })
   @IsNotEmpty()
-  @MinLength(1)
   age: number;
 
-  @IsOptional()
+  @ApiProperty({ description: '역할', enum: Role, required: false })
   @IsEnum(Role)
+  @IsOptional()
   role?: Role;
 }
