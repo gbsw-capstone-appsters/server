@@ -7,12 +7,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { ImageService } from 'src/image/image.service';
+import { QuizResult } from 'src/quiz/entities/quiz-result.entity';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, QuizResult]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, ImageService],

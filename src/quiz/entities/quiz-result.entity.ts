@@ -26,19 +26,12 @@ export class QuizResult {
     [key: string]: {
       correct: number;
       total: number;
-      percentage: number;
       score: number;
     };
   };
 
-  @Column('json')
-  weakestAreas: string[];
-
   @Column('float')
   overallScore: number;
-
-  @Column('float')
-  level: number;
 
   @Column('timestamp', { default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

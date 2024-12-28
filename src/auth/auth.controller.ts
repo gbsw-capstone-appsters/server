@@ -9,6 +9,7 @@ import {
   ValidationPipe,
   UseInterceptors,
   UploadedFile,
+  Param,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, SignupDto } from './dto/auth.dto';
@@ -24,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '../@common/enums/role.enum';
+import { Roles } from '../@common/decorators/roles.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -58,6 +60,7 @@ export class AuthController {
     return this.authService.signin(authDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiResponse({
     status: 200,
     description: '성공',
@@ -68,18 +71,18 @@ export class AuthController {
   })
   @ApiOperation({ summary: 'Refresh Token 발급' })
   @Get('/refresh')
-  @UseGuards(AuthGuard('jwt'))
   refresh(@GetUser() user: User) {
     return this.authService.refreshToken(user);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '프로필 조회' })
   @Get('/me')
-  @UseGuards(AuthGuard('jwt'))
   getProfile(@GetUser() user: User) {
     return this.authService.getProfile(user);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiResponse({
     status: 200,
     description: '성공',
@@ -91,7 +94,6 @@ export class AuthController {
   @ApiOperation({ summary: '프로필 수정' })
   @ApiConsumes('multipart/form-data')
   @Patch('/me')
-  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FileInterceptor('image'))
   editProfile(
     @Body() editProfileDto: EditProfileDto,
@@ -101,6 +103,7 @@ export class AuthController {
     return this.authService.editProfile(editProfileDto, user, image);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiResponse({
     status: 200,
     description: '성공',
@@ -111,11 +114,11 @@ export class AuthController {
   })
   @ApiOperation({ summary: '로그아웃' })
   @Post('/logout')
-  @UseGuards(AuthGuard('jwt'))
   logout(@GetUser() user: User) {
     return this.authService.deleteRefreshToken(user);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiResponse({
     status: 200,
     description: '성공',
@@ -126,8 +129,37 @@ export class AuthController {
   })
   @ApiOperation({ summary: '계정 삭제' })
   @Delete('/me')
-  @UseGuards(AuthGuard('jwt'))
   deleteAccount(@GetUser() user: User) {
     return this.authService.deleteAccount(user);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: '부모님 학생 등록' })
+  @Post('parent/:parentId/child/:studentId')
+  @Roles(Role.PARENT)
+  async addChild(
+    @Param('parentId') parentId: number,
+    @Param('studentId') studentId: number,
+  ) {
+    return this.authService.addChild(parentId, studentId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: '부모님 학생 등록 해제' })
+  @Delete('parent/:parentId/child/:childId')
+  @Roles(Role.PARENT)
+  async removeChild(
+    @Param('parentId') parentId: number,
+    @Param('childId') childId: number,
+  ) {
+    return this.authService.removeChild(parentId, childId);
+  }
+
+  @ApiOperation({ summary: '부모님 자신의 학생 목록 조회' })
+  @UseGuards(AuthGuard('jwt'))
+  @Get('parent/:parentId/children')
+  @Roles(Role.PARENT)
+  async getChildren(@Param('parentId') parentId: number) {
+    return this.authService.getChildren(parentId);
   }
 }

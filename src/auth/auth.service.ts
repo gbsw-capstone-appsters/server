@@ -17,12 +17,15 @@ import { ConfigService } from '@nestjs/config';
 import { EditProfileDto } from './dto/edit-profile.dto';
 import { ImageService } from '../image/image.service';
 import { Role } from '../@common/enums/role.enum';
+import { QuizResult } from '../quiz/entities/quiz-result.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(QuizResult)
+    private quizResultRepository: Repository<QuizResult>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private imageService: ImageService,
@@ -33,13 +36,14 @@ export class AuthService {
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const userRole = role || Role.STUDENT;
+
     const user = this.userRepository.create({
       email,
       password: hashedPassword,
-      loginType: 'email',
       nickName,
       age,
-      role: role ? Role[role.toUpperCase()] : Role.STUDENT,
+      role: userRole,
     });
 
     try {
@@ -56,6 +60,66 @@ export class AuthService {
     }
 
     return { message: '회원가입이 완료되었습니다.' };
+  }
+
+  async addChild(parentId: number, studentId: number) {
+    const parent = await this.userRepository.findOne({
+      where: { id: parentId, role: Role.PARENT },
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    const student = await this.userRepository.findOne({
+      where: { id: studentId, role: Role.STUDENT },
+    });
+    if (!student) {
+      throw new NotFoundException('학생을 찾을 수 없습니다.');
+    }
+
+    student.parent = parent;
+    await this.userRepository.save(student);
+    return { message: '등록이 완료되었습니다.' };
+  }
+
+  async removeChild(parentId: number, childId: number) {
+    const parent = await this.userRepository.findOne({
+      where: { id: parentId, role: Role.PARENT },
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    const child = await this.userRepository.findOne({
+      where: { id: childId, parent: parent },
+    });
+    if (!child) {
+      throw new NotFoundException('학생을 찾을 수 없습니다.');
+    }
+
+    // 학생의 부모 관계 해제
+    child.parent = null;
+    await this.userRepository.save(child);
+
+    return { message: '등록해제가 완료되었습니다.' };
+  }
+
+  async getChildren(parentId: number) {
+    const parent = await this.userRepository.findOne({
+      where: { id: parentId, role: Role.PARENT },
+      relations: ['children'],
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    // 불필요한 정보 제거
+    const children = parent.children.map((child) => {
+      const { password, hashedRefreshToken, ...rest } = child;
+      return rest;
+    });
+
+    return children;
   }
 
   private async getTokens(payload: { email: string }) {
