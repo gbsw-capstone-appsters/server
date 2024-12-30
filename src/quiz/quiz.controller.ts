@@ -64,16 +64,16 @@ export class QuizController {
 
   @ApiOperation({ summary: '학생 학습 진행 상황 조회' })
   @ApiResponse({ status: 200, description: '성공' })
-  @Get('student/:studentId/progress')
+  @Get('student/progress')
   @Roles(Role.PARENT)
-  async getStudentProgress(@Param('studentId') studentId: number) {
-    return this.quizService.getStudentProgress(studentId);
+  async getStudentProgress(@Body('studentEmail') studentEmail: string) {
+    return this.quizService.getStudentProgressByEmail(studentEmail);
   }
 
-  @ApiOperation({ summary: '사용자의 각 카테고리별 최고 점수 조회' })
+  @ApiOperation({ summary: '학생 각 카테고리별 최고 점수 조회' })
   @ApiResponse({ status: 200, description: '성공' })
-  @Get('user/:userId/best-scores')
-  async getUserBestScores(@Param('userId') userId: number) {
-    return this.quizService.getUserBestScores(userId);
+  @Get('student/best-scores')
+  async getStudentBestScores(@GetUser() user: User) {
+    return this.quizService.getStudentBestScoresByEmail(user.email);
   }
 }

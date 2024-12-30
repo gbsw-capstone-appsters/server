@@ -362,9 +362,9 @@ export class QuizService {
     return result;
   }
 
-  async getStudentProgress(studentId: number) {
+  async getStudentProgressByEmail(studentEmail: string) {
     const student = await this.userRepository.findOne({
-      where: { id: studentId, role: Role.STUDENT },
+      where: { email: studentEmail, role: Role.STUDENT },
       relations: ['quizResults'],
     });
     if (!student) {
@@ -374,9 +374,16 @@ export class QuizService {
     return student.quizResults;
   }
 
-  async getUserBestScores(userId: number): Promise<any> {
+  async getStudentBestScoresByEmail(studentEmail: string): Promise<any> {
+    const user = await this.userRepository.findOne({
+      where: { email: studentEmail },
+    });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
     const results = await this.quizResultRepository.find({
-      where: { userId },
+      where: { userId: user.id },
     });
 
     const bestScores = results.reduce((acc, result) => {
