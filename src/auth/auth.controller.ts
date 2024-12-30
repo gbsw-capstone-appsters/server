@@ -135,31 +135,31 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '부모님 학생 등록' })
-  @Post('parent/:parentId/child/:studentId')
+  @Post('parent/child')
   @Roles(Role.PARENT)
   async addChild(
-    @Param('parentId') parentId: number,
-    @Param('studentId') studentId: number,
+    @GetUser() user: User,
+    @Body(ValidationPipe) body: { studentEmail: string },
   ) {
-    return this.authService.addChild(parentId, studentId);
+    return this.authService.addChildByEmail(user.email, body.studentEmail);
   }
 
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '부모님 학생 등록 해제' })
-  @Delete('parent/:parentId/child/:childId')
+  @Delete('parent/child')
   @Roles(Role.PARENT)
   async removeChild(
-    @Param('parentId') parentId: number,
-    @Param('childId') childId: number,
+    @GetUser() user: User,
+    @Body(ValidationPipe) body: { studentEmail: string },
   ) {
-    return this.authService.removeChild(parentId, childId);
+    return this.authService.removeChildByEmail(user.email, body.studentEmail);
   }
 
   @ApiOperation({ summary: '부모님 자신의 학생 목록 조회' })
   @UseGuards(AuthGuard('jwt'))
-  @Get('parent/:parentId/children')
+  @Get('parent/children')
   @Roles(Role.PARENT)
-  async getChildren(@Param('parentId') parentId: number) {
-    return this.authService.getChildren(parentId);
+  async getChildren(@GetUser() user: User) {
+    return this.authService.getChildrenByEmail(user.email);
   }
 }

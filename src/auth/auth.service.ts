@@ -122,6 +122,66 @@ export class AuthService {
     return children;
   }
 
+  async addChildByEmail(parentEmail: string, studentEmail: string) {
+    const parent = await this.userRepository.findOne({
+      where: { email: parentEmail, role: Role.PARENT },
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    const student = await this.userRepository.findOne({
+      where: { email: studentEmail, role: Role.STUDENT },
+    });
+    if (!student) {
+      throw new NotFoundException('학생을 찾을 수 없습니다.');
+    }
+
+    student.parent = parent;
+    await this.userRepository.save(student);
+    return { message: '등록이 완료되었습니다.' };
+  }
+
+  async removeChildByEmail(parentEmail: string, studentEmail: string) {
+    const parent = await this.userRepository.findOne({
+      where: { email: parentEmail, role: Role.PARENT },
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    const child = await this.userRepository.findOne({
+      where: { email: studentEmail, parent: parent },
+    });
+    if (!child) {
+      throw new NotFoundException('학생을 찾을 수 없습니다.');
+    }
+
+    // 학생의 부모 관계 해제
+    child.parent = null;
+    await this.userRepository.save(child);
+
+    return { message: '등록해제가 완료되었습니다.' };
+  }
+
+  async getChildrenByEmail(parentEmail: string) {
+    const parent = await this.userRepository.findOne({
+      where: { email: parentEmail, role: Role.PARENT },
+      relations: ['children'],
+    });
+    if (!parent) {
+      throw new NotFoundException('부모님을 찾을 수 없습니다.');
+    }
+
+    // 불필요한 정보 제거
+    const children = parent.children.map((child) => {
+      const { password, hashedRefreshToken, ...rest } = child;
+      return rest;
+    });
+
+    return children;
+  }
+
   private async getTokens(payload: { email: string }) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
