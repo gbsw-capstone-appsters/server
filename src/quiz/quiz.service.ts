@@ -44,6 +44,23 @@ export class QuizService {
     });
   }
 
+  private getReadingLevel(age: number): string {
+    if (age >= 8 && age <= 9) return '쉬움';
+    if (age >= 10 && age <= 11) return '보통';
+    if (age >= 12 && age <= 13) return '어려움';
+    return '보통';
+  }
+
+  private getReadingPrompt(level: string): string {
+    const prompts = {
+      쉬움: '초등학교 1-2학년 수준의 매우 쉬운 한국어 지문을 작성해주세요. 문장은 단순하고 짧아야 하며, 기본적인 어휘만 사용해야 합니다.',
+      보통: '초등학교 3-4학년 수준의 한국어 지문을 작성해주세요. 적절한 길이의 문장과 중급 수준의 어휘를 사용할 수 있습니다.',
+      어려움:
+        '초등학교 5-6학년 수준의 도전적인 한국어 지문을 작성해주세요. 복잡한 문장 구조와 높은 수준의 어휘를 포함할 수 있습니다.',
+    };
+    return prompts[level];
+  }
+
   async generateQuiz(userId: number, category: string): Promise<Quiz> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -54,12 +71,22 @@ export class QuizService {
       throw new BadRequestException('유효하지 않은 카테고리입니다.');
     }
 
+    let passagePrompt;
+    if (category === '독해') {
+      const level = this.getReadingLevel(user.age);
+      passagePrompt = `${this.getReadingPrompt(level)} 다음 형식으로 작성해주세요:
+      제목: (짧고 명확한 제목)
+      내용: (본문 내용)`;
+    } else {
+      passagePrompt = `사용자의 나이는 ${user.age}입니다. 나이수준에 맞도록 쉽게 ${category}에 대한 문제를 만들기 위한 한국어 문장을 100자 이내로 생성합니다.`;
+    }
+
     const passageResponse = await this.openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         {
           role: 'user',
-          content: `사용자의 나이는 ${user.age}입니다. 나이수준에 맞도록 쉽게 ${category}에 대한 문제를 만들기 위한 한국어 문장을 100자 이내로 생성합니다.`,
+          content: passagePrompt,
         },
       ],
     });
